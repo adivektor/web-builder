@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GrapesJS Builder</title>
+  <link rel="stylesheet" href="node_modules/grapesjs/dist/css/grapes.min.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; }
+
+    #navbar {
+      height: 45px;
+      background: #1e2327;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      color: #ccc;
+    }
+    #navbar .logo { font-size: 15px; font-weight: bold; color: #fff; }
+    #navbar .actions { display: flex; gap: 8px; }
+    #navbar button {
+      padding: 5px 14px;
+      border: 1px solid #555;
+      background: #2e3338;
+      color: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .device-select { padding:6px 8px; font-size:13px; border-radius:6px; background:#2b3136; color:#cfcfcf; border:1px solid #444 }
+
+    /* Pages panel - vertical */
+    #pages-panel { display:flex; flex-direction:column; gap:8px; padding:10px 12px; border-bottom:1px solid #2b2b2b }
+    #pages-list { display:flex; flex-direction:column; gap:8px; align-items:stretch; overflow:auto; max-height:220px }
+    .page-item { padding:8px 10px; background:#25282b; color:#cfcfcf; border-radius:6px; font-size:13px; cursor:pointer; border:1px solid #3a3a3a; text-align:left; width:100% }
+    .page-item.active { background:#4a90d9; color:#fff; border-color:#4a90d9 }
+    #btn-add-page { padding:6px 8px; font-size:13px; border-radius:4px; background:#2e3338; color:#cfcfcf; border:1px solid #444; cursor:pointer }
+    .page-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .page-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .page-actions{display:flex;gap:6px}
+    .page-action-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#9fb3d0;padding:6px;border-radius:6px;cursor:pointer;font-size:12px}
+    .page-action-btn.danger{color:#ffb4b4;border-color:rgba(255,80,80,0.12)}
+
+    /* Code modal */
+    .code-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+    .code-modal{width:90%;max-width:1000px;background:#0f1720;color:#e6eef6;border-radius:8px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
+    .code-modal .header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0b1220}
+    .code-modal .tabs{display:flex;gap:8px}
+    .code-modal .tab{padding:6px 10px;border-radius:6px;background:transparent;color:#9fb3d0;cursor:pointer;border:1px solid transparent}
+    .code-modal .tab.active{background:#102836;color:#fff;border-color:#1f6fb5}
+    .code-modal .body{display:flex;gap:0}
+    .code-modal .body{display:flex;gap:0}
+    .code-modal .code-col{flex:1;min-width:0;border-left:1px solid rgba(255,255,255,0.03)}
+    .code-modal .code-col pre{margin:0;padding:12px;white-space:pre-wrap;word-wrap:break-word;max-height:60vh;overflow:auto;background:#071018;color:#cfe8ff;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace}
+    .code-actions{display:flex;gap:8px}
+    #navbar button:hover { background: #444; color: #fff; }
+    #navbar button.primary { background: #4a90d9; border-color: #4a90d9; color: #fff; }
+
+    #editor-wrapper {
+      display: flex;
+      height: calc(100vh - 45px);
+    }
+
+    #blocks-panel {
+      width: 220px;
+      background: #1e2327;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+      flex-shrink: 0;
+    }
+    #blocks-panel h3 {
+      color: #aaa;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 12px 6px;
+    }
+
+    #gjs { flex: 1; }
+
+    #styles-panel {
+      width: 240px;
+      background: #1e2327;
+      overflow-y: auto;
+      border-left: 1px solid #333;
+      flex-shrink: 0;
+    }
+    #styles-panel h3 {
+      color: #aaa;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 12px 6px;
+    }
+    #style-manager-container, #traits-container, #layers-container {
+      padding: 8px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      border-bottom: 1px solid #333;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px 4px;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 11px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active { color: #fff; border-bottom-color: #4a90d9; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .gjs-block-category .gjs-title { background: #2a2f35 !important; }
+    .gjs-block { border-color: #444 !important; color: #ccc !important; }
+    .gjs-block:hover { border-color: #4a90d9 !important; color: #fff !important; }
+  </style>
+</head>
+<body>
+
+<div id="navbar">
+  <div class="logo">🎨 GrapesJS Builder</div>
+  <div class="actions">
+    <select id="device-select" class="device-select" title="Tampilan perangkat">
+      <option value="Desktop">Desktop</option>
+      <option value="Tablet">Tablet</option>
+      <option value="Mobile Portrait">Mobile P</option>
+      <option value="Mobile Landscape">Mobile L</option>
+    </select>
+    <button id="btn-undo">↩ Undo</button>
+    <button id="btn-redo">↪ Redo</button>
+    <button id="btn-preview">👁 Preview</button>
+    <button id="btn-clear">🗑 Clear</button>
+    <button id="btn-code">&lt;/&gt; Kode</button>
+    <button class="primary" id="btn-export">⬇ Export HTML</button>
+  </div>
+</div>
+
+<div id="editor-wrapper">
+  <div id="blocks-panel">
+    <div id="pages-panel">
+      <div style="color:#aaa;font-size:11px;font-weight:700">Halaman</div>
+      <div id="pages-list"></div>
+      <button id="btn-add-page" title="Tambah halaman">＋</button>
+    </div>
+    <h3>Komponen</h3>
+    <div id="blocks"></div>
+  </div>
+
+  <div id="gjs"></div>
+
+  <div id="styles-panel">
+    <div class="tab-buttons">
+      <button class="tab-btn active" data-tab="styles">Style</button>
+      <button class="tab-btn" data-tab="traits">Atribut</button>
+      <button class="tab-btn" data-tab="layers">Layer</button>
+    </div>
+    <div id="tab-styles" class="tab-content active">
+      <div id="style-manager-container"></div>
+    </div>
+    <div id="tab-traits" class="tab-content">
+      <div id="traits-container"></div>
+    </div>
+    <div id="tab-layers" class="tab-content">
+      <div id="layers-container"></div>
+    </div>
+  </div>
+</div>
+
+<script src="node_modules/grapesjs/dist/grapes.min.js"></script>
+<script src="node_modules/grapesjs-blocks-basic/dist/grapesjs-blocks-basic.min.js"></script>
+<!-- Highlight.js for code preview -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<script>if(window.hljs)hljs.configure({ignoreUnescapedHTML:true});</script>
+<!-- JSZip for export .zip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  var editor = grapesjs.init({
+    container: '#gjs',
+    height: '100%',
+    width: 'auto',
+    fromElement: false,
+    storageManager: {
+      type: 'local',
+      autosave: true,
+      autoload: true,
+      stepsBeforeSave: 1,
+    },
+    blockManager: {
+      appendTo: '#blocks',
+    },
+    styleManager: {
+      appendTo: '#style-manager-container',
+      sectors: [
+        {
+          name: 'Dimensi',
+          open: true,
+          properties: ['width','height','max-width','margin','padding'],
+        },
+        {
+          name: 'Tipografi',
+          open: false,
+          properties: ['font-family','font-size','font-weight','color','text-align','line-height'],
+        },
+        {
+          name: 'Dekorasi',
+          open: false,
+          properties: ['background-color','border','border-radius','opacity'],
+        },
+        {
+          name: 'Extra',
+          open: false,
+          properties: ['display','position','top','left'],
+        },
+      ],
+    },
+    traitManager: {
+      appendTo: '#traits-container',
+    },
+    layerManager: {
+      appendTo: '#layers-container',
+    },
+    deviceManager: {
+      devices: [
+        { name: 'Desktop', width: '' },
+        { name: 'Tablet', width: '768px', widthMedia: '992px' },
+        { name: 'Mobile Portrait', width: '375px', widthMedia: '480px' },
+        { name: 'Mobile Landscape', width: '667px', widthMedia: '768px' },
+      ],
+    },
+    panels: { defaults: [] },
+    plugins: ['grapesjs-blocks-basic'],
+    pluginsOpts: {
+      'grapesjs-blocks-basic': {
+        flexGrid: true,
+        blocks: ['column1','column2','column3','column3-7','text','link','image','video','map'],
+      },
+    },
+    canvas: {
+      styles: [
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap',
+      ],
+    },
+  });
+
+  // =============================================
+  // CATEGORY: SECTIONS (blok lama)
+  // =============================================
+
+  editor.BlockManager.add('hero-section', {
+    label: 'Hero Section',
+    category: 'Sections',
+    content: `<section style="padding:80px 40px;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff">
+      <h1 style="font-size:48px;margin-bottom:16px">Judul Utama</h1>
+      <p style="font-size:18px;margin-bottom:32px;opacity:0.9">Deskripsi singkat yang menarik perhatian pengunjung website Anda.</p>
+      <a href="#" style="display:inline-block;padding:14px 32px;background:#fff;color:#667eea;border-radius:6px;font-weight:bold;text-decoration:none">Mulai Sekarang</a>
+    </section>`,
+  });
+
+  editor.BlockManager.add('card-grid', {
+    label: 'Card Grid',
+    category: 'Sections',
+    content: `<section style="padding:60px 40px;background:#f8f9fa">
+      <h2 style="text-align:center;margin-bottom:40px;font-size:32px">Fitur Kami</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:900px;margin:0 auto">
+        <div style="background:#fff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">🚀</div>
+          <h3 style="margin-bottom:8px">Cepat</h3>
+          <p style="color:#666;font-size:14px">Performa tinggi untuk pengalaman terbaik</p>
+        </div>
+        <div style="background:#fff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">🔒</div>
+          <h3 style="margin-bottom:8px">Aman</h3>
+          <p style="color:#666;font-size:14px">Keamanan data terjamin sepenuhnya</p>
+        </div>
+        <div style="background:#fff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center">
+          <div style="font-size:36px;margin-bottom:12px">💡</div>
+          <h3 style="margin-bottom:8px">Mudah</h3>
+          <p style="color:#666;font-size:14px">Antarmuka yang intuitif dan ramah pengguna</p>
+        </div>
+      </div>
+    </section>`,
+  });
+
+  editor.BlockManager.add('navbar-block', {
+    label: 'Navbar',
+    category: 'Sections',
+    content: `<nav style="display:flex;align-items:center;justify-content:space-between;padding:16px 40px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.08)">
+      <div style="font-size:20px;font-weight:bold;color:#333">Logo</div>
+      <div style="display:flex;gap:24px">
+        <a href="#" style="color:#555;text-decoration:none;font-size:15px">Beranda</a>
+        <a href="#" style="color:#555;text-decoration:none;font-size:15px">Tentang</a>
+        <a href="#" style="color:#555;text-decoration:none;font-size:15px">Layanan</a>
+        <a href="#" style="color:#555;text-decoration:none;font-size:15px">Kontak</a>
+      </div>
+      <a href="#" style="padding:8px 20px;background:#4a90d9;color:#fff;border-radius:5px;text-decoration:none;font-size:14px">Daftar</a>
+    </nav>`,
+  });
+
+  editor.BlockManager.add('footer-block', {
+    label: 'Footer',
+    category: 'Sections',
+    content: `<footer style="padding:40px;background:#1e2327;color:#aaa;text-align:center">
+      <p style="margin-bottom:8px;font-size:18px;color:#fff;font-weight:bold">Nama Website</p>
+      <p style="font-size:13px">© 2025 Semua hak dilindungi.</p>
+    </footer>`,
+  });
+
+  editor.BlockManager.add('contact-form', {
+    label: 'Form Kontak',
+    category: 'Sections',
+    content: `<section style="padding:60px 40px;background:#fff;text-align:center">
+      <h2 style="margin-bottom:8px">Hubungi Kami</h2>
+      <p style="color:#666;margin-bottom:32px">Kami siap membantu Anda</p>
+      <form style="max-width:500px;margin:0 auto;text-align:left">
+        <input type="text" placeholder="Nama Lengkap" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;font-size:14px"/>
+        <input type="email" placeholder="Email" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;font-size:14px"/>
+        <textarea placeholder="Pesan Anda..." rows="4" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;font-size:14px;resize:vertical"></textarea>
+        <button type="submit" style="width:100%;padding:13px;background:#4a90d9;color:#fff;border:none;border-radius:6px;font-size:15px;font-weight:bold;cursor:pointer">Kirim Pesan</button>
+      </form>
+    </section>`,
+  });
+
+  // =============================================
+  // CATEGORY: TOMBOL
+  // =============================================
+
+  editor.BlockManager.add('btn-primary', {
+    label: 'Tombol Primary',
+    category: 'Tombol',
+    content: `<a href="#" style="display:inline-block;padding:12px 28px;background:#4a90d9;color:#fff;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;cursor:pointer">Tombol Primary</a>`,
+  });
+
+  editor.BlockManager.add('btn-secondary', {
+    label: 'Tombol Secondary',
+    category: 'Tombol',
+    content: `<a href="#" style="display:inline-block;padding:12px 28px;background:transparent;color:#4a90d9;border:2px solid #4a90d9;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;cursor:pointer">Tombol Secondary</a>`,
+  });
+
+  editor.BlockManager.add('btn-danger', {
+    label: 'Tombol Danger',
+    category: 'Tombol',
+    content: `<a href="#" style="display:inline-block;padding:12px 28px;background:#e74c3c;color:#fff;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;cursor:pointer">Hapus</a>`,
+  });
+
+  editor.BlockManager.add('btn-success', {
+    label: 'Tombol Success',
+    category: 'Tombol',
+    content: `<a href="#" style="display:inline-block;padding:12px 28px;background:#27ae60;color:#fff;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;cursor:pointer">Simpan</a>`,
+  });
+
+  editor.BlockManager.add('btn-group', {
+    label: 'Grup Tombol',
+    category: 'Tombol',
+    content: `<div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="#" style="display:inline-block;padding:10px 22px;background:#4a90d9;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">Simpan</a>
+      <a href="#" style="display:inline-block;padding:10px 22px;background:transparent;color:#555;border:1px solid #ccc;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">Batal</a>
+      <a href="#" style="display:inline-block;padding:10px 22px;background:#e74c3c;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">Hapus</a>
+    </div>`,
+  });
+
+  editor.BlockManager.add('btn-icon', {
+    label: 'Tombol + Ikon',
+    category: 'Tombol',
+    content: `<a href="#" style="display:inline-flex;align-items:center;gap:8px;padding:11px 24px;background:#4a90d9;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">
+      <span style="font-size:16px">➕</span> Tambah Baru
+    </a>`,
+  });
+
+  // =============================================
+  // CATEGORY: INPUT / FORM
+  // =============================================
+
+  editor.BlockManager.add('input-text', {
+    label: 'Input Teks',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Label</label>
+      <input type="text" placeholder="Masukkan teks..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;outline:none"/>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-email', {
+    label: 'Input Email',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Email</label>
+      <input type="email" placeholder="contoh@email.com" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;outline:none"/>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-password', {
+    label: 'Input Password',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Password</label>
+      <input type="password" placeholder="••••••••" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;outline:none"/>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-textarea', {
+    label: 'Textarea',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Pesan</label>
+      <textarea rows="4" placeholder="Tulis pesan Anda..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;outline:none;resize:vertical"></textarea>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-checkbox', {
+    label: 'Checkbox',
+    category: 'Input & Form',
+    content: `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="checkbox" style="width:16px;height:16px;cursor:pointer"/> Pilihan Pertama
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="checkbox" style="width:16px;height:16px;cursor:pointer"/> Pilihan Kedua
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="checkbox" style="width:16px;height:16px;cursor:pointer"/> Pilihan Ketiga
+      </label>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-radio', {
+    label: 'Radio Button',
+    category: 'Input & Form',
+    content: `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="radio" name="radio-group" style="width:16px;height:16px;cursor:pointer"/> Opsi A
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="radio" name="radio-group" style="width:16px;height:16px;cursor:pointer"/> Opsi B
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#333;cursor:pointer">
+        <input type="radio" name="radio-group" style="width:16px;height:16px;cursor:pointer"/> Opsi C
+      </label>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-search', {
+    label: 'Search Bar',
+    category: 'Input & Form',
+    content: `<div style="display:flex;border:1px solid #ddd;border-radius:8px;overflow:hidden;max-width:400px">
+      <input type="search" placeholder="🔍  Cari sesuatu..." style="flex:1;padding:11px 16px;border:none;font-size:14px;color:#333;outline:none"/>
+      <button style="padding:11px 18px;background:#4a90d9;color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer">Cari</button>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-file', {
+    label: 'Upload File',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Upload File</label>
+      <div style="border:2px dashed #ccc;border-radius:8px;padding:30px;text-align:center;background:#fafafa;cursor:pointer">
+        <div style="font-size:32px;margin-bottom:8px">📁</div>
+        <p style="font-size:14px;color:#666">Klik untuk pilih file atau drag & drop di sini</p>
+        <input type="file" style="display:none"/>
+      </div>
+    </div>`,
+  });
+
+  editor.BlockManager.add('input-range', {
+    label: 'Slider / Range',
+    category: 'Input & Form',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:#333;margin-bottom:8px">
+        <span>Volume</span><span>70%</span>
+      </label>
+      <input type="range" min="0" max="100" value="70" style="width:100%;accent-color:#4a90d9"/>
+    </div>`,
+  });
+
+  // =============================================
+  // CATEGORY: LABELS / BADGES
+  // =============================================
+
+  editor.BlockManager.add('label-badges', {
+    label: 'Label / Badge',
+    category: 'Input & Form',
+    content: `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="padding:6px 10px;background:#e8f4fd;color:#0b63a8;border-radius:999px;font-size:13px">Design</span>
+      <span style="padding:6px 10px;background:#f3e8ff;color:#6b21a8;border-radius:999px;font-size:13px">UI</span>
+      <span style="padding:6px 10px;background:#ecfdf5;color:#065f46;border-radius:999px;font-size:13px">Production</span>
+      <span style="padding:6px 10px;background:#fff7ed;color:#92400e;border-radius:999px;font-size:13px">Release</span>
+    </div>`,
+  });
+
+  // =============================================
+  // CATEGORY: DROPDOWN
+  // =============================================
+
+  editor.BlockManager.add('dropdown-select', {
+    label: 'Dropdown Select',
+    category: 'Dropdown',
+    content: `<div style="margin-bottom:16px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:6px">Pilih Kategori</label>
+      <select style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;background:#fff;cursor:pointer;outline:none">
+        <option value="">-- Pilih salah satu --</option>
+        <option value="1">Kategori A</option>
+        <option value="2">Kategori B</option>
+        <option value="3">Kategori C</option>
+        <option value="4">Kategori D</option>
+      </select>
+    </div>`,
+  });
+
+  editor.BlockManager.add('dropdown-nav', {
+    label: 'Dropdown Menu Nav',
+    category: 'Dropdown',
+    content: `<div style="position:relative;display:inline-block">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'"
+        style="padding:10px 20px;background:#4a90d9;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px">
+        Menu ▾
+      </button>
+      <div style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:180px;z-index:100;overflow:hidden">
+        <a href="#" style="display:block;padding:11px 18px;font-size:14px;color:#333;text-decoration:none;border-bottom:1px solid #f0f0f0">🏠 Beranda</a>
+        <a href="#" style="display:block;padding:11px 18px;font-size:14px;color:#333;text-decoration:none;border-bottom:1px solid #f0f0f0">👤 Profil</a>
+        <a href="#" style="display:block;padding:11px 18px;font-size:14px;color:#333;text-decoration:none;border-bottom:1px solid #f0f0f0">⚙️ Pengaturan</a>
+        <a href="#" style="display:block;padding:11px 18px;font-size:14px;color:#e74c3c;text-decoration:none">🚪 Keluar</a>
+      </div>
+    </div>`,
+  });
+
+  editor.BlockManager.add('dropdown-multiselect', {
+    label: 'Multi-level Dropdown',
+    category: 'Dropdown',
+    content: `<div style="display:flex;gap:12px;flex-wrap:wrap">
+      <select style="padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;background:#fff;cursor:pointer;outline:none">
+        <option>Provinsi</option>
+        <option>Jawa Barat</option>
+        <option>Jawa Tengah</option>
+        <option>Jawa Timur</option>
+      </select>
+      <select style="padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#333;background:#fff;cursor:pointer;outline:none">
+        <option>Kota/Kabupaten</option>
+        <option>Bandung</option>
+        <option>Bekasi</option>
+        <option>Depok</option>
+      </select>
+    </div>`,
+  });
+
+  editor.BlockManager.add('dropdown-user', {
+    label: 'Dropdown User Avatar',
+    category: 'Dropdown',
+    content: `<div style="position:relative;display:inline-block">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'"
+        style="display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;background:#fff;border:1px solid #e0e0e0;border-radius:50px;cursor:pointer">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:14px">S</div>
+        <span style="font-size:14px;color:#333;font-weight:500">Supriyadi</span>
+        <span style="font-size:11px;color:#888">▾</span>
+      </button>
+      <div style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);min-width:200px;z-index:100;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid #f0f0f0">
+          <div style="font-size:14px;font-weight:600;color:#333">Supriyadi</div>
+          <div style="font-size:12px;color:#888">supriyadi@email.com</div>
+        </div>
+        <a href="#" style="display:block;padding:11px 16px;font-size:14px;color:#333;text-decoration:none;border-bottom:1px solid #f5f5f5">👤 Profil Saya</a>
+        <a href="#" style="display:block;padding:11px 16px;font-size:14px;color:#333;text-decoration:none;border-bottom:1px solid #f5f5f5">⚙️ Pengaturan</a>
+        <a href="#" style="display:block;padding:11px 16px;font-size:14px;color:#e74c3c;text-decoration:none">🚪 Keluar</a>
+      </div>
+    </div>`,
+  });
+
+  // =============================================
+  // CATEGORY: SIDEBAR
+  // =============================================
+
+  editor.BlockManager.add('sidebar-left', {
+    label: 'Sidebar Kiri',
+    category: 'Sidebar',
+    content: `<div style="display:flex;min-height:500px;background:#f8f9fa;border-radius:10px;overflow:hidden">
+      <!-- Sidebar Kiri -->
+      <aside style="width:240px;background:#1e2327;color:#ccc;padding:0;flex-shrink:0">
+        <div style="padding:20px 16px;border-bottom:1px solid #333">
+          <div style="font-size:18px;font-weight:700;color:#fff">🎨 Aplikasi</div>
+        </div>
+        <nav style="padding:12px 0">
+          <a href="#" style="display:flex;align-items:center;gap:12px;padding:11px 20px;color:#fff;text-decoration:none;background:#4a90d9;font-size:14px">
+            <span>🏠</span> Beranda
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:12px;padding:11px 20px;color:#aaa;text-decoration:none;font-size:14px">
+            <span>📊</span> Dashboard
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:12px;padding:11px 20px;color:#aaa;text-decoration:none;font-size:14px">
+            <span>👥</span> Pengguna
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:12px;padding:11px 20px;color:#aaa;text-decoration:none;font-size:14px">
+            <span>📁</span> Dokumen
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:12px;padding:11px 20px;color:#aaa;text-decoration:none;font-size:14px">
+            <span>⚙️</span> Pengaturan
+          </a>
+        </nav>
+        <div style="position:absolute;bottom:0;padding:16px 20px;border-top:1px solid #333;width:240px">
+          <a href="#" style="display:flex;align-items:center;gap:10px;color:#aaa;text-decoration:none;font-size:13px">
+            <span>🚪</span> Keluar
+          </a>
+        </div>
+      </aside>
+      <!-- Konten Utama -->
+      <main style="flex:1;padding:30px">
+        <h2 style="font-size:22px;margin-bottom:8px;color:#333">Judul Halaman</h2>
+        <p style="color:#666;font-size:14px">Konten utama halaman ada di sini. Klik sidebar untuk navigasi antar halaman.</p>
+      </main>
+    </div>`,
+  });
+
+  editor.BlockManager.add('sidebar-right', {
+    label: 'Sidebar Kanan',
+    category: 'Sidebar',
+    content: `<div style="display:flex;min-height:500px;background:#f8f9fa;border-radius:10px;overflow:hidden">
+      <!-- Konten Utama -->
+      <main style="flex:1;padding:30px">
+        <h2 style="font-size:22px;margin-bottom:8px;color:#333">Judul Halaman</h2>
+        <p style="color:#666;font-size:14px;line-height:1.6">Konten utama halaman ada di sini. Sidebar di sebelah kanan bisa digunakan untuk filter, info tambahan, atau widget.</p>
+      </main>
+      <!-- Sidebar Kanan -->
+      <aside style="width:220px;background:#fff;border-left:1px solid #e8e8e8;padding:20px;flex-shrink:0">
+        <h3 style="font-size:13px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px">Filter</h3>
+        <div style="margin-bottom:20px">
+          <label style="display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:6px">Kategori</label>
+          <select style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;color:#333">
+            <option>Semua</option>
+            <option>Berita</option>
+            <option>Tutorial</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:8px">Tag Populer</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <span style="padding:4px 10px;background:#e8f4fd;color:#4a90d9;border-radius:50px;font-size:12px;cursor:pointer">Design</span>
+            <span style="padding:4px 10px;background:#e8f4fd;color:#4a90d9;border-radius:50px;font-size:12px;cursor:pointer">Linux</span>
+            <span style="padding:4px 10px;background:#e8f4fd;color:#4a90d9;border-radius:50px;font-size:12px;cursor:pointer">Web</span>
+            <span style="padding:4px 10px;background:#e8f4fd;color:#4a90d9;border-radius:50px;font-size:12px;cursor:pointer">CSS</span>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:8px">Rentang Harga</label>
+          <input type="range" min="0" max="100" value="50" style="width:100%;accent-color:#4a90d9"/>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px">
+            <span>Rp 0</span><span>Rp 1jt</span>
+          </div>
+        </div>
+      </aside>
+    </div>`,
+  });
+
+  editor.BlockManager.add('sidebar-dashboard', {
+    label: 'Layout Dashboard',
+    category: 'Sidebar',
+    content: `<div style="display:flex;min-height:600px;font-family:sans-serif">
+      <!-- Sidebar -->
+      <aside style="width:200px;background:#0f172a;color:#94a3b8;display:flex;flex-direction:column;flex-shrink:0">
+        <div style="padding:20px 16px;border-bottom:1px solid #1e293b">
+          <div style="font-size:16px;font-weight:700;color:#fff">⚡ Dashboard</div>
+        </div>
+        <nav style="flex:1;padding:8px 0">
+          <div style="padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569;margin-top:8px">Menu Utama</div>
+          <a href="#" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:#fff;text-decoration:none;background:#1e40af;font-size:13px;border-left:3px solid #3b82f6">
+            📊 Overview
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:#94a3b8;text-decoration:none;font-size:13px">
+            📈 Analitik
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:#94a3b8;text-decoration:none;font-size:13px">
+            🛍️ Produk
+          </a>
+          <div style="padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569;margin-top:12px">Akun</div>
+          <a href="#" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:#94a3b8;text-decoration:none;font-size:13px">
+            👤 Profil
+          </a>
+          <a href="#" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:#94a3b8;text-decoration:none;font-size:13px">
+            ⚙️ Pengaturan
+          </a>
+        </nav>
+      </aside>
+      <!-- Konten -->
+      <div style="flex:1;background:#f1f5f9;padding:28px">
+        <h1 style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:20px">Overview</h1>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+          <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Total Pengguna</div>
+            <div style="font-size:26px;font-weight:700;color:#0f172a">1,248</div>
+            <div style="font-size:12px;color:#22c55e;margin-top:4px">↑ 12% bulan ini</div>
+          </div>
+          <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Pendapatan</div>
+            <div style="font-size:26px;font-weight:700;color:#0f172a">Rp 24jt</div>
+            <div style="font-size:12px;color:#22c55e;margin-top:4px">↑ 8% bulan ini</div>
+          </div>
+          <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Pesanan Baru</div>
+            <div style="font-size:26px;font-weight:700;color:#0f172a">386</div>
+            <div style="font-size:12px;color:#ef4444;margin-top:4px">↓ 3% bulan ini</div>
+          </div>
+        </div>
+        <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+          <p style="font-size:14px;color:#64748b">Grafik dan tabel data bisa ditambahkan di sini.</p>
+        </div>
+      </div>
+    </div>`,
+  });
+
+  // =============================================
+  // Tombol navbar
+  // =============================================
+  document.getElementById('btn-undo').onclick = () => editor.Commands.run('core:undo');
+  document.getElementById('btn-redo').onclick = () => editor.Commands.run('core:redo');
+  document.getElementById('btn-preview').onclick = () => editor.Commands.run('core:preview');
+  document.getElementById('btn-clear').onclick = () => {
+    if (confirm('Hapus semua konten?')) editor.DomComponents.clear();
+  };
+  document.getElementById('btn-export').onclick = () => {
+    const html = editor.getHtml();
+    const css  = editor.getCss();
+    const full = `<!DOCTYPE html>\n<html lang="id">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>Halaman Saya</title>\n<style>\n${css}\n</style>\n</head>\n<body>\n${html}\n</body>\n</html>`;
+    const blob = new Blob([full], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'halaman-saya.html';
+    a.click();
+  };
+
+  // Device dropdown (compact)
+  const deviceSelect = document.getElementById('device-select');
+  if(deviceSelect){
+    deviceSelect.onchange = function(){
+      try{ editor.setDevice(this.value); }catch(e){ console.warn('Set device failed', e); }
+    };
+  }
+
+  // --- Code preview modal (side-by-side, syntax highlighted) ---
+  function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function openCodeModal(htmlBody, css){
+    const backdrop = document.createElement('div'); backdrop.className = 'code-modal-backdrop';
+    const modal = document.createElement('div'); modal.className = 'code-modal';
+    // build full HTML document
+    const fullHtml = `<!DOCTYPE html>\n<html lang="id">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>Halaman Preview</title>\n<style>\n${css}\n</style>\n</head>\n<body>\n${htmlBody}\n</body>\n</html>`;
+
+    modal.innerHTML = `
+      <div class="header">
+        <div style="color:#9fb3d0;font-weight:600">Pratinjau Kode</div>
+        <div class="code-actions">
+          <button id="code-copy">Salin</button>
+          <button id="code-zip">Export .zip</button>
+          <button id="code-close">Tutup</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="code-col"><div style="padding:8px 12px;color:#9fb3d0;background:#071018;border-bottom:1px solid #0b1220">HTML</div><pre><code id="code-html" class="language-html">${escapeHtml(fullHtml)}</code></pre></div>
+        <div class="code-col"><div style="padding:8px 12px;color:#9fb3d0;background:#071018;border-bottom:1px solid #0b1220">CSS</div><pre><code id="code-css" class="language-css">${escapeHtml(css)}</code></pre></div>
+      </div>
+    `;
+    backdrop.appendChild(modal); document.body.appendChild(backdrop);
+    const copyBtn = modal.querySelector('#code-copy');
+    copyBtn.onclick = ()=>{
+      const text = modal.querySelector('#code-html').textContent + '\n\n/* CSS */\n' + modal.querySelector('#code-css').textContent;
+      navigator.clipboard.writeText(text).then(()=> alert('Disalin ke clipboard'));
+    };
+    const zipBtn = modal.querySelector('#code-zip');
+    zipBtn.onclick = async ()=>{
+      try{
+        if(window.JSZip){
+          const zip = new JSZip();
+          const htmlContent = modal.querySelector('#code-html').textContent;
+          const cssContent = modal.querySelector('#code-css').textContent;
+          zip.file('index.html', htmlContent);
+          zip.file('styles.css', cssContent);
+          const blob = await zip.generateAsync({type:'blob'});
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'page-export.zip'; a.click();
+        }else{
+          alert('JSZip tidak ditemukan. Pastikan koneksi internet aktif dan coba lagi.');
+        }
+      }catch(e){ console.error(e); alert('Gagal membuat zip: '+ e.message); }
+    };
+    modal.querySelector('#code-close').onclick = ()=> backdrop.remove();
+
+    // Highlight if available
+    function doHighlight(){
+      try{
+        if(window.hljs){ hljs.highlightElement(modal.querySelector('#code-html')); hljs.highlightElement(modal.querySelector('#code-css')); }
+      }catch(e){ console.warn('Highlight failed', e); }
+    }
+    doHighlight();
+  }
+  document.getElementById('btn-code').onclick = ()=>{
+    const html = editor.getHtml(); const css = editor.getCss(); openCodeModal(html, css);
+  };
+
+  // --- Pages manager (simpel, disimpan di localStorage) ---
+  window.gjs_pages = [];
+  let gjs_active_page = 0;
+  function renderPages(){
+    const container = document.getElementById('pages-list'); if(!container) return;
+    container.innerHTML = '';
+    gjs_pages.forEach((p,i)=>{
+      const row = document.createElement('div'); row.className = 'page-item' + (i===gjs_active_page? ' active':'');
+      const inner = document.createElement('div'); inner.className = 'page-row';
+      const name = document.createElement('div'); name.className = 'page-name'; name.textContent = p.name;
+      name.title = p.name;
+      name.onclick = ()=> loadPage(i);
+      const actions = document.createElement('div'); actions.className = 'page-actions';
+      const renameBtn = document.createElement('button'); renameBtn.className = 'page-action-btn'; renameBtn.textContent = '✏️'; renameBtn.title = 'Rename';
+      renameBtn.onclick = (e)=>{ e.stopPropagation(); renamePage(i); };
+      const delBtn = document.createElement('button'); delBtn.className = 'page-action-btn danger'; delBtn.textContent = '🗑'; delBtn.title = 'Delete';
+      delBtn.onclick = (e)=>{ e.stopPropagation(); deletePage(i); };
+      actions.appendChild(renameBtn); actions.appendChild(delBtn);
+      inner.appendChild(name); inner.appendChild(actions);
+      row.appendChild(inner);
+      container.appendChild(row);
+    });
+  }
+  function saveCurrentPage(idx){
+    if(typeof gjs_pages[idx] === 'undefined') return;
+    gjs_pages[idx].html = editor.getHtml(); gjs_pages[idx].css = editor.getCss();
+    localStorage.setItem('gjs_pages', JSON.stringify(gjs_pages));
+  }
+  function loadPage(idx){
+    if(typeof gjs_pages[gjs_active_page] !== 'undefined') saveCurrentPage(gjs_active_page);
+    gjs_active_page = idx;
+    editor.setComponents(gjs_pages[idx].html || '<div></div>');
+    editor.setStyle(gjs_pages[idx].css || '');
+    renderPages();
+  }
+  document.getElementById('btn-add-page').onclick = ()=>{
+    // simpan saat ini lalu buat halaman baru
+    if(gjs_pages.length === 0) initPages();
+    saveCurrentPage(gjs_active_page);
+    const name = 'Page ' + (gjs_pages.length + 1);
+    gjs_pages.push({ name: name, html: '<section style="padding:40px"><h2>'+name+' </h2><p>Konten baru...</p></section>', css: '' });
+    localStorage.setItem('gjs_pages', JSON.stringify(gjs_pages));
+    renderPages(); loadPage(gjs_pages.length-1);
+  };
+  function initPages(){
+    const saved = localStorage.getItem('gjs_pages');
+    if(saved){ try{ gjs_pages = JSON.parse(saved); }catch(e){ gjs_pages = []; } }
+    if(!gjs_pages || gjs_pages.length === 0){ gjs_pages = [{ name: 'Home', html: editor.getHtml(), css: editor.getCss() }]; localStorage.setItem('gjs_pages', JSON.stringify(gjs_pages)); }
+    renderPages();
+  }
+  initPages();
+
+  // Rename and delete page functions
+  function renamePage(idx){
+    const name = prompt('Nama halaman baru:', gjs_pages[idx].name);
+    if(name && name.trim()){ gjs_pages[idx].name = name.trim(); localStorage.setItem('gjs_pages', JSON.stringify(gjs_pages)); renderPages(); }
+  }
+  function deletePage(idx){
+    if(!confirm('Hapus halaman "' + gjs_pages[idx].name + '"?')) return;
+    gjs_pages.splice(idx,1);
+    if(gjs_pages.length === 0){ gjs_pages = [{ name: 'Home', html: '<div></div>', css: '' }]; gjs_active_page = 0; }
+    else if(idx === gjs_active_page){ gjs_active_page = Math.max(0, idx-1); }
+    localStorage.setItem('gjs_pages', JSON.stringify(gjs_pages));
+    renderPages(); loadPage(gjs_active_page);
+  }
+
+  // --- Tambah blok tambahan: modal, tabel, alert ---
+  editor.BlockManager.add('widget-modal', {
+    label: 'Modal / Popup',
+    category: 'Widgets',
+    content: `<div style="position:relative"><button style="padding:10px 16px;background:#4a90d9;color:#fff;border-radius:6px">Buka Modal</button><div style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.5)"><div style="background:#fff;padding:20px;border-radius:8px;max-width:420px;width:90%"><h3>Judul Modal</h3><p>Isi modal di sini.</p><button style="margin-top:12px;padding:8px 12px;background:#e74c3c;color:#fff;border-radius:6px">Tutup</button></div></div></div>`,
+  });
+
+  editor.BlockManager.add('widget-table', {
+    label: 'Tabel Data',
+    category: 'Widgets',
+    content: `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #e6e6e6">Nama</th><th style="text-align:left;padding:8px;border-bottom:1px solid #e6e6e6">Email</th><th style="text-align:left;padding:8px;border-bottom:1px solid #e6e6e6">Status</th></tr></thead><tbody><tr><td style="padding:8px;border-bottom:1px solid #f2f2f2">Siti</td><td style="padding:8px;border-bottom:1px solid #f2f2f2">siti@email.com</td><td style="padding:8px;border-bottom:1px solid #f2f2f2">Aktif</td></tr><tr><td style="padding:8px">Budi</td><td style="padding:8px">budi@email.com</td><td style="padding:8px">Nonaktif</td></tr></tbody></table></div>`,
+  });
+
+  editor.BlockManager.add('widget-alert', {
+    label: 'Alert / Notifikasi',
+    category: 'Widgets',
+    content: `<div style="padding:12px;border-radius:8px;background:#fffbeb;border:1px solid #f5e0a9;color:#b45309">⚠️ Peringatan: Isi pesan notifikasi di sini.</div>`,
+  });
+
+  // Tab panel kanan
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = function() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    };
+  });
+</script>
+</body>
+</html>
