@@ -215,6 +215,11 @@
           properties: ['background-color','border','border-radius','opacity'],
         },
         {
+          name: 'Background Image',
+          open: false,
+          properties: ['background-image','background-size','background-position','background-repeat'],
+        },
+        {
           name: 'Extra',
           open: false,
           properties: ['display','position','top','left'],
@@ -712,6 +717,49 @@
   });
 
   // =============================================
+  // CATEGORY: LAYOUT (Row / Column / Grid)
+  // =============================================
+
+  editor.BlockManager.add('layout-row', {
+    label: 'Row (Kontainer)',
+    category: 'Layout',
+    content: `<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:12px;align-items:stretch">
+        <div style="flex:1;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">Kolom 1</div>
+        <div style="flex:1;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">Kolom 2</div>
+      </div>
+    </div>`,
+  });
+
+  editor.BlockManager.add('layout-column-1-3', {
+    label: 'Kolom 1/3 + 2/3',
+    category: 'Layout',
+    content: `<div style="display:flex;gap:12px">
+      <div style="flex:1 1 33%;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">1/3</div>
+      <div style="flex:2 1 67%;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">2/3</div>
+    </div>`,
+  });
+
+  editor.BlockManager.add('layout-column-2-1', {
+    label: 'Kolom 2/3 + 1/3',
+    category: 'Layout',
+    content: `<div style="display:flex;gap:12px">
+      <div style="flex:2 1 67%;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">2/3</div>
+      <div style="flex:1 1 33%;padding:16px;background:#fff;border-radius:8px;border:1px solid #e6e6e6">1/3</div>
+    </div>`,
+  });
+
+  editor.BlockManager.add('layout-grid-3', {
+    label: 'Grid 3 Kolom',
+    category: 'Layout',
+    content: `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e6e6e6">Item 1</div>
+      <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e6e6e6">Item 2</div>
+      <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e6e6e6">Item 3</div>
+    </div>`,
+  });
+
+  // =============================================
   // Tombol navbar
   // =============================================
   document.getElementById('btn-undo').onclick = () => editor.Commands.run('core:undo');
@@ -738,6 +786,69 @@
       try{ editor.setDevice(this.value); }catch(e){ console.warn('Set device failed', e); }
     };
   }
+
+  // =============================================
+  // Custom Background Image Upload Handler
+  // =============================================
+  
+  function addBackgroundImageUploadButton(){
+    setTimeout(function(){
+      const styleManagerContainer = document.getElementById('style-manager-container');
+      if(!styleManagerContainer) return;
+      
+      // Cari container Background Image sector
+      const sectorLabels = styleManagerContainer.querySelectorAll('[class*="gjs-sm-property"]');
+      
+      // Tambahkan observer untuk mendeteksi background-image property
+      const observer = new MutationObserver(function(){
+        const bgImageInputs = styleManagerContainer.querySelectorAll('input[data-prop="background-image"]');
+        bgImageInputs.forEach(input => {
+          if(input.dataset.uploadHandled) return;
+          input.dataset.uploadHandled = true;
+          
+          // Buat wrapper untuk input + button
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'display:flex;gap:8px;align-items:center';
+          
+          // Buat file input
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = 'image/*';
+          fileInput.style.display = 'none';
+          fileInput.onchange = function(){
+            const file = this.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e){
+              const dataUrl = e.target.result;
+              input.value = 'url(' + JSON.stringify(dataUrl) + ')';
+              input.dispatchEvent(new Event('change'));
+              input.dispatchEvent(new Event('input'));
+            };
+            reader.readAsDataURL(file);
+          };
+          
+          // Buat button upload
+          const uploadBtn = document.createElement('button');
+          uploadBtn.textContent = '📤 Upload';
+          uploadBtn.style.cssText = 'padding:6px 10px;background:#4a90d9;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;flex-shrink:0';
+          uploadBtn.onclick = (e) => { e.preventDefault(); fileInput.click(); };
+          
+          // Insert ke dalam DOM
+          input.parentElement.insertBefore(wrapper, input);
+          wrapper.appendChild(input);
+          wrapper.appendChild(uploadBtn);
+          wrapper.appendChild(fileInput);
+        });
+      });
+      
+      observer.observe(styleManagerContainer, { childList: true, subtree: true });
+    }, 500);
+  }
+  
+  addBackgroundImageUploadButton();
+
+  // Device dropdown (compact)
 
   // --- Code preview modal (side-by-side, syntax highlighted) ---
   function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -880,6 +991,33 @@
     label: 'Alert / Notifikasi',
     category: 'Widgets',
     content: `<div style="padding:12px;border-radius:8px;background:#fffbeb;border:1px solid #f5e0a9;color:#b45309">⚠️ Peringatan: Isi pesan notifikasi di sini.</div>`,
+  });
+
+  // =============================================
+  // CATEGORY: IMAGE UPLOAD
+  // =============================================
+
+  editor.BlockManager.add('image-upload', {
+    label: 'Upload Gambar',
+    category: 'Widgets',
+    content: `<div style="border:2px dashed #4a90d9;border-radius:10px;padding:30px;text-align:center;background:#f0f7ff;cursor:pointer" onclick="this.querySelector('input').click()">
+      <div style="font-size:40px;margin-bottom:12px">🖼️</div>
+      <p style="font-size:14px;color:#4a90d9;font-weight:600;margin-bottom:4px">Klik untuk upload gambar</p>
+      <p style="font-size:12px;color:#999">atau drag & drop gambar di sini</p>
+      <input type="file" accept="image/*" style="display:none" onchange="const reader=new FileReader();reader.onload=function(e){const preview=this.parentElement.nextElementSibling;if(!preview){const div=document.createElement('div');div.style.cssText='margin-top:15px';this.parentElement.parentElement.appendChild(div);}const img=document.createElement('img');img.src=e.target.result;img.style.cssText='max-width:100%;max-height:300px;border-radius:8px;display:block;margin:0 auto';this.parentElement.parentElement.querySelector('div:last-child').innerHTML='';this.parentElement.parentElement.querySelector('div:last-child').appendChild(img);};reader.readAsDataURL(this.files[0])"/>
+    </div>`,
+  });
+
+  editor.BlockManager.add('background-image-upload', {
+    label: 'Background + Image Upload',
+    category: 'Widgets',
+    content: `<div id="bg-upload-container" style="min-height:300px;padding:30px;text-align:center;background:linear-gradient(135deg,#f0f7ff 0%,#e8f4fd 100%);border-radius:10px;border:2px dashed #4a90d9">
+      <div style="font-size:36px;margin-bottom:12px">🎨</div>
+      <p style="font-size:14px;color:#333;font-weight:600;margin-bottom:8px">Set Background Gambar</p>
+      <p style="font-size:12px;color:#666;margin-bottom:16px">Upload gambar untuk background elemen ini</p>
+      <input type="file" id="bg-file-input" accept="image/*" style="display:none" onchange="const reader=new FileReader();const container=this.closest('#bg-upload-container');reader.onload=function(e){container.style.backgroundImage='url('+e.target.result+')';container.style.backgroundSize='cover';container.style.backgroundPosition='center';container.querySelector('p').style.display='none';container.querySelector('div').style.display='none';};reader.readAsDataURL(this.files[0])"/>
+      <button onclick="document.querySelector('#bg-file-input').click()" style="padding:10px 20px;background:#4a90d9;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Pilih Gambar</button>
+    </div>`,
   });
 
   // Tab panel kanan
